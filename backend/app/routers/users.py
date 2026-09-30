@@ -1,4 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 from .. import models, schemas
 from ..database import get_db
@@ -23,9 +24,10 @@ def login(data: schemas.LoginIn, db: Session = Depends(get_db)):
         raise HTTPException(401, "Credenciales inválidas")
     return {"access_token": create_access_token(user.id), "token_type": "bearer", "user": user}
 
-@router.get("/users/{user_id}", response_model=schemas.UserOut)
+@router.get("/users/{user_id}", response_model=schemas.UserProfile)
 def get_user(user_id: int, db: Session = Depends(get_db)):
     user = db.get(models.User, user_id)
     if not user:
         raise HTTPException(404, "Usuario no encontrado")
-    return user
+    count = db.query(func.count(models.Video.id)).filter(models.Video.user_id == user_id).scalar()
+    return schemas.UserProfile(id=user.id, name=user.name, email=user.email, videos_count=count)
